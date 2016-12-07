@@ -5,36 +5,19 @@ import numpy as np
 
 from tif import loadtiffstack
 from tracks_module import loadAll
+from methods_for_segmentation import methods
+from utils import STACKS,DATA,FIGURES
 
 
-def makeCircle():
-	cache = {}
-
-	def get(ri):
-		if ri not in cache:
-			mask = np.zeros((ri * 2, ri * 2))
-
-			for x in range(ri * 2):
-				for y in range(ri * 2):
-					dx = x - (ri - 0.5)
-					dy = y - (ri - 0.5)
-					if dx * dx + dy * dy <= ri * ri:
-						mask[x, y] = 1
-			cache[ri] = mask
-		return cache[ri]
-
-	return get
-
-
-circles = makeCircle()
-
-
-def getValues(tps):
+def getValues(tps,method='extendedCircle'):
 	s_pos = tps.s_pos
+	if method not in methods:
+		print "ERROR method:"+method+" not in methods:"+str(methods)
+		return None
 	print "###############"
 	print s_pos
 	try:
-		stack = loadtiffstack("E:\\hke3 11_11_16\\hke3 longtime\\Ratio " + s_pos + ".tif")
+		stack = loadtiffstack("Ratio " + s_pos + ".tif")
 		im = stack.next()
 	except:
 		return -1
@@ -46,50 +29,28 @@ def getValues(tps):
 		for tdi, td in enumerate(tps.tracks):
 			if not td.poss[ti] == -1:
 				x, y, r = td.poss[ti]
-				xi, yi, ri = int(x), int(y), int(r)
+				coords = methods[method](x,y,r,im)
 				temp = []
-				# pixels,p1 = [],[]
-				cx = x + ri
-				cy = y - ri
-				for y in range(yi - 4 - 2 * ri, yi + 4):
-					if y >= 0 and y < h:
-						for x in range(xi - 4, xi + 2 * ri + 4):
-							if x >= 0 and x < w:
-								dx = x - cx
-								dy = y - cy
-								if dx * dx + dy * dy <= 1.251 * (1.5 + ri) * (1.5 + ri):
-									temp.append(im[y][x])
-									''' debugging to see circle
-									pixels.append((y,x))
-								if dx*dx+dy*dy <= ri*ri:
-									p1.append((y,x))
-
-				for y,x in pixels:
-					im[y][x] = 5
-				for y,x in p1:
-					im[y][x] = 10
-				plt.imshow(im,interpolation='none')
-				plt.show()
-				quit()
-				'''
+				for y,x in coords:
+					temp.append(im[y][x])
 				values[tdi][ti] = np.nanmedian(temp)
-
 		if ti < 299:
 			im = stack.next()
 	return values
 
 
+
 def computeAllValues(cache):
 	if cache:
-		return pickle.load(open("..\\data\\values", "r"))
-	trackss = loadAll(cache)
+		return pickle.load(open(DATA+"values", "r"))
+	trackss = loadAll(True)
 	valuess = {}
 	for s_pos in sorted(trackss):
 		tps = trackss[s_pos]
 		values = getValues(tps)
 		if not values == -1:
 			valuess[s_pos] = values
-	pickle.dump(valuess, open("..\\data\\values", "w"))
+	pickle.dump(valuess, open(DATA+"values", "w"))
 	return valuess
 
 
@@ -106,8 +67,8 @@ def getegf(s_pos):
 
 
 def plotAllOnOnePLot():
-	trackss = loadAll()
-	valuess = computeAllValues()
+	trackss = loadAll(True)
+	valuess = computeAllValues(True)
 	plt.figure(figsize=(42, 30))
 	i = 0
 	for s_pos in sorted(valuess):
@@ -143,12 +104,12 @@ def plotAllOnOnePLot():
 			plt.xlim([0, 300])
 			plt.ylim([0.6, 1.2])
 	plt.tight_layout()
-	plt.savefig('raw_data_plot.png', dpi=300)
+	plt.savefig(FIGURES+'raw_data_plot.png', dpi=300)
 
 
 def plotAllOnSeparatePlots():
-	trackss = loadAll()
-	valuess = computeAllValues()
+	trackss = loadAll(True)
+	valuess = computeAllValues(True)
 	for egf in ["  0 pg", " 10 pg", "100 pg", "600 pg"]:
 		plt.figure(figsize=(25, 25))
 		i = 0
@@ -187,7 +148,7 @@ def plotAllOnSeparatePlots():
 				plt.xlim([0, 300])
 				plt.ylim([0.6, 1.2])
 		plt.tight_layout()
-		plt.savefig('raw_data_' + egf + '.png', dpi=300)
+		plt.savefig(FIGURES+'raw_data_' + egf + '.png', dpi=300)
 
 
 def main():

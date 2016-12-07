@@ -1,6 +1,8 @@
 import xml.etree.ElementTree as ET
 import pickle
 
+from utils import DATA,TRACKS
+
 class TrackData:
 
 	special_events = -1
@@ -30,7 +32,7 @@ def parsePosition(s_pos):
 	C = 0.6449999809265137#pixel width and pixelheight
 	
 	try:
-		tree = ET.parse('E:\\hke3 11_11_16\\tracks temp\\'+s_pos+'.xml')
+		tree = ET.parse(TRACKS+s_pos+'.xml')
 	except:
 		return -1
 	root = tree.getroot()
@@ -65,7 +67,7 @@ def parsePosition(s_pos):
 
 def loadAll(cache):
 	if cache:
-		return pickle.load(open("..\\data\\cache","r"))
+		return pickle.load(open(DATA+"cache","r"))
 	else:
 		res = {}
 		for pos in range(1,85):
@@ -78,5 +80,5 @@ def loadAll(cache):
 			if not tps == -1:
 				print s_pos
 				res[s_pos] = tps
-		pickle.dump(res,open("..\\data\\cache","w"))
+		pickle.dump(res,open(DATA+"cache","w"))
 		return res
