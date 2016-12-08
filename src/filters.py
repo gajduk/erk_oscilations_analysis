@@ -68,13 +68,20 @@ class NanAndCloseTo1Filter:
 
 
 class MinConsecutiveLengthFilter:
+
 	def __init__(self, l=50):
 		self.l = l
+		self.bad_positions = {('012',8),('012',7),('009',1),('023',0),('028',1),\
+		('029',0),('035',3),('037',0),('041',2),('041',4),('052',0),('054',0),('054',2),\
+		('058',3),('058',5),('058',10),('063',2),('063',4),('064',6),('063',3),('065',7),('059',2),\
+		                      ('037',4)}
 
 	def filter(self, ts, position, cell_idx):
 		i = 0
 		ll = 0
-		if position == "060":
+		if position == "060" or position == "052":
+			return True
+		if (position,cell_idx) in self.bad_positions:
 			return True
 		while i < len(ts):
 			while i < len(ts) and not np.isnan(ts[i]):

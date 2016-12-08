@@ -13,11 +13,13 @@ for scd in dataset._scd:
 
 # BaselineCorrection(5)
 #plotter = SingleCellPlotter(dataset,TransformationPipeline([SavGolFilter(n=31,p=3)]),MinConsecutiveLengthFilter(150))
-
+'''
 plotter = SingleCellPlotter(dataset,TransformationPipeline([]),MinConsecutiveLengthFilter(150))
 plotter.plot()
 '''
-tp_imshow = TransformationPipeline([ClearNans(),TiseanTransformation('sav_gol -n15,15 -p3'),BaselineCorrection(5),NormalizedByMax(),PeakMarker(thres=0.2, min_dist=18)])
-imshow_plotter = SingleConditionPlotter(dataset,tp_imshow,NanAndCloseTo1Filter())
+tp_imshow = TransformationPipeline([SavGolFilter(n=19,p=3),BaselineCorrection(4),PeakMarker(thres=0.3,min_dist=8)])
+imshow_plotter = SingleConditionPlotter(dataset,tp_imshow,MinConsecutiveLengthFilter(150))
 imshow_plotter.plot()
-'''
+
+#plotter = SingleCellPlotter(dataset,tp_imshow,MinConsecutiveLengthFilter(150))
+#plotter.plot()

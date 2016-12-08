@@ -78,7 +78,7 @@ class SingleCellPlotter(Plotter):
 				# plt.xticks(xticks,xlabels)
 				# plt.yticks(yticks,ylabels)
 				plt.xlim([0, self._dataset._nframes])
-				plt.ylim([0.75,1.25])
+				plt.ylim([-0.1,0.2])
 				plt.tight_layout()
 				plt.grid()
 				plt.savefig(self.get_filename(scd, scmd), transparent=True, dpi=300)
@@ -141,7 +141,9 @@ class SingleConditionPlotter(Plotter):
 	def plot(self):
 		plt.figure(figsize=(6, 6))
 		subplot_idx = 1
-		for scd in self._dataset._scd:  # iterate over conditions
+		combined = None
+		ytick_labels = []
+		for scd_idx,scd in enumerate(self._dataset._scd):  # iterate over conditions
 			plt.subplot(2, 2, subplot_idx)
 			subplot_idx += 1
 			# xticks = [i*6*4 for i in range(13)]
@@ -159,19 +161,45 @@ class SingleConditionPlotter(Plotter):
 			for idx, scmd in enumerate(scd._scmd):  # iterate over cells
 				if self.is_cell_filtered(scmd):
 					continue
-				ts = self.get_time_series(scmd)[10:-10]
+				ts = self.get_time_series(scmd)
 				condition_y[count, :len(ts)] = ts
+				ytick_labels.append(str(scmd)[5:])
 				count += 1
 
 			#
+			if combined is None:
+				combined = condition_y
+				for zxcasd in range(4):
+					ytick_labels.append(' ')
+			else:
+				a = np.zeros((4, scd._nframes))
+				a[:] = np.NAN
+				combined = np.vstack((combined, a,condition_y))
+				for zxcasd in range(4):
+					ytick_labels.append(' ')
 			self.plot_internal(condition_y)
 			plt.xlabel('Frame [' + str(self._dataset._frame_length_in_minutes) + ' min]')
 			plt.title(self.get_title(scd))
 			# plt.xticks(xticks,xlabels)
-			plt.xlim([0, self._dataset._nframes])
-
+			plt.xlim([0, self._dataset._nframes-10])
 		plt.tight_layout()
-		plt.savefig(self.get_filename(scd))
+		plt.savefig(self.get_filename(scd),dpi=300,transparent=True)
+		plt.close()
+
+		plt.figure(figsize=(6, 12))
+		self.plot_internal(combined)
+
+		plt.xlabel('Frame [' + str(self._dataset._frame_length_in_minutes) + ' min]')
+		plt.title(self.get_title(scd))
+		# plt.xticks(xticks,xlabels)
+		plt.xlim([0, self._dataset._nframes - 10])
+		plt.yticks(range(len(ytick_labels)),ytick_labels,fontsize=5)
+		plt.tight_layout()
+		plt.text(300,15,'  0 pg egf')
+		plt.text(300,40,' 10 pg egf')
+		plt.text(300,75,'100 pg egf')
+		plt.text(300,120,'600 pg egf')
+		plt.savefig(self._folder+"combined.png",dpi=300,transparent=True)
 		plt.close()
 
 	def get_filename(self, scd):
@@ -184,4 +212,4 @@ class SingleConditionPlotter(Plotter):
 		masked_array = np.ma.array(ts, mask=np.isnan(ts))
 		cmap = plt.cm.jet
 		cmap.set_bad('white', 1.)
-		plt.imshow(ts, aspect='auto', interpolation='none')
+		plt.imshow(ts, aspect=10, interpolation='none',vmin=0,vmax=.04)

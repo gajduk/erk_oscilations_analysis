@@ -8,7 +8,7 @@ from scipy.stats.kde import gaussian_kde
 
 from tif import loadtiffstack
 from tracks_module import loadAll
-from utils import STACKS
+from utils import STACKS,FIGURES
 
 
 def maskimage2cv(im):
@@ -68,6 +68,7 @@ def extendedCircle(x, y, r, im):
 					dy = y - cy
 					if dx * dx + dy * dy <= 1.251 * (1.5 + ri) * (1.5 + ri):
 						coords.append((y, x))
+
 	return coords
 
 
@@ -87,7 +88,9 @@ def plotContourAndHist(x, y, r, im, method, color, sb):
 	plt.subplot(sb[1])
 	plt.fill([e[0] - (xi - 50) for e in contours[0]], [e[1] - (yi - 50) for e in contours[0]], color=color,
 	         linewidth=3, fill=False)
-	temp = [e for e in temp if not np.isnan(e)]
+	temp = [e for e in temp if not np.isnan(e) and not np.isinf(e)]
+	if len(temp) < 50:
+		return
 	temp.sort()
 	n = len(temp)
 	ends = int(n / 20)
@@ -130,7 +133,7 @@ def plotSingleFrame(im, im_cfpyfp, td, ti, tdi, s_pos, methods_and_colors):
 	for method, color in methods_and_colors:
 		plotContourAndHist(x, y, r, im_cfpyfp, method, color, sb=(gs[1], gs[3]))
 		plt.tight_layout()
-	plt.savefig(s_pos + "_" + str(tdi) + "_" + str(ti + 1) + ".png")
+	plt.savefig(FIGURES+"temp\\"+s_pos + "_" + str(tdi) + "_" + str(ti + 1) + ".png",transparent=True,dpi=150)
 	plt.close()
 
 
@@ -143,7 +146,7 @@ def getSnapshotIndexes(tps):
 		step = len(tis) / (n_snapshots - 1)
 		t_indexes = []
 		for i in range(n_snapshots - 1):
-			t_indexes.append(int(i * step))
+			t_indexes.append(tis[int(i * step)])
 		t_indexes.append(tis[-5])
 		res[tdi] = t_indexes
 	return res
@@ -151,9 +154,17 @@ def getSnapshotIndexes(tps):
 
 def testMethod(methods_and_colors):
 	trackss = loadAll(True)
-	for s_pos in sorted(trackss):
+	for s_pos in sorted(trackss)[38:]:#["003"]:
 		tps = trackss[s_pos]
-
+		pos = int(s_pos)
+		if pos < 15:
+			egf = "0 pg"
+		elif pos < 26:
+			egf = "10 pg"
+		elif pos < 47:
+			egf = "100 pg"
+		else:
+			egf = "600 pg"
 		print "###############"
 		print s_pos
 		try:
@@ -169,6 +180,7 @@ def testMethod(methods_and_colors):
 			h, w = im.shape
 			for tdi, td in enumerate(tps.tracks):
 				if ti in track_snapshots_ti[tdi]:
+					print ti,tdi
 					plotSingleFrame(im, im_cfpyfp, td, ti, tdi, s_pos, methods_and_colors)
 			if ti < 299:
 				im = ratio_stack.next()
@@ -180,15 +192,25 @@ def testMethod(methods_and_colors):
 			for ti in track_snapshots_ti[tdi]:
 				img_filename = s_pos + "_" + str(tdi) + "_" + str(ti + 1) + ".png"
 				list_im.append(img_filename)
-			imgs = [Image.open(i) for i in list_im]
+			imgs = [Image.open(FIGURES+"temp\\"+i) for i in list_im]
 			imgs_comb1 = np.hstack((imgs[i] for i in [0, 1, 2]))
 			imgs_comb2 = np.hstack((imgs[i] for i in [3, 4, 5]))
 			imgs_comb3 = np.hstack((imgs[i] for i in [6, 7, 8]))
 			imgs_comb = np.vstack((imgs_comb1, imgs_comb2, imgs_comb3))
-			imgs_comb = Image.fromarray(imgs_comb)
-			imgs_comb.save(s_pos + "_" + str(tdi) + ".png")
-		break
+			try:
+				img = Image.open(FIGURES+"raw_single_cell\\"+egf+" "+s_pos+" "+str(tdi)+".png")
+				temp = np.hstack((img,))
+				mm, nn = 1800, 2400
+				M, N = 3600, 4500
+				asd = np.zeros((M, nn, 4),dtype='uint8')
+				asd[900:2700, :, :] = temp
+				final = np.hstack((imgs_comb, asd))
 
+				imgs_comb = Image.fromarray(final)
+				imgs_comb.save(FIGURES+"montages\\"+s_pos + "_" + str(tdi) + ".png")
+			except:
+				print "IMAGE "+FIGURES+"raw_single_cell\\"+egf+" "+s_pos+" "+str(tdi)+".png"" not found"
+				pass
 
 if __name__ == '__main__':
 	testMethod([('basicCircle', 'black'), ('extendedCircle', 'blue')])
