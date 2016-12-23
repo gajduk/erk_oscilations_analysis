@@ -2,7 +2,7 @@ import numpy
 import peakutils
 from matplotlib import pyplot
 from peakutils.plot import plot as pplot
-from transformations import removeNans
+from transformations import removeNansDecorator
 
 def simple_example_from_tutorial():
 	# preparing data
@@ -47,8 +47,8 @@ class BaselineEstimator:
 	def __init__(self, deg=5):
 		self._deg = deg
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		return peakutils.baseline(numpy.array(ts), self._deg)
 
 	def __str__(self):
@@ -59,8 +59,8 @@ class BaselineCorrection:
 	def __init__(self, deg=5):
 		self._deg = deg
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		return ts - peakutils.baseline(numpy.array(ts), self._deg)
 
 	def __str__(self):
@@ -72,8 +72,8 @@ class PeakDetection:
 		self._thres = thres
 		self._min_dist = min_dist
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		ts = numpy.array(ts)
 		indexes = peakutils.indexes(ts, thres=self._thres, min_dist=self._min_dist)
 		res = numpy.zeros(ts.shape)
@@ -90,8 +90,8 @@ class PeakMarker:
 		self._thres = thres
 		self._min_dist = min_dist
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		ts = numpy.array(ts)
 		indexes = peakutils.indexes(ts, thres=self._thres, min_dist=self._min_dist)
 		res = ts

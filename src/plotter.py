@@ -6,6 +6,11 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
+from filters import recurenceplot
+from recurence_plot_quantifications import get_rp, lam, rr
+from transformations.peakutils_wrapper import PeakDetection
+from transformations.transformations import removeNans
+
 default_figure_folder = "C:\\Users\\gajduk\\Desktop\\figs\\"
 
 
@@ -52,15 +57,18 @@ class Plotter:
 		return self._filter.filter(ts, position, cell_idx)
 
 	def get_time_series(self, scmd):
-		return self._transformation.transform(scmd.get_time_series())
+		position = scmd._position
+		cell_idx = scmd._cell_idx
+		return self._transformation.transform(scmd.get_time_series(), (position, cell_idx))
 
 	def get_label(self):
 		return "F_" + str(self._filter) + " T_" + str(self._transformation)
 
 
 class SingleCellPlotter(Plotter):
-	def __init__(self, dataset, transformation, filter_):
+	def __init__(self, dataset, transformation, filter_, ylim=[-0.1, 0.2]):
 		Plotter.__init__(self, dataset, transformation, filter_)
+		self.ylim = ylim
 
 	def plot(self):
 		for scd in self._dataset._scd:  # iterate over conditions
@@ -78,10 +86,53 @@ class SingleCellPlotter(Plotter):
 				# plt.xticks(xticks,xlabels)
 				# plt.yticks(yticks,ylabels)
 				plt.xlim([0, self._dataset._nframes])
-				plt.ylim([-0.1,0.2])
+				plt.ylim(self.ylim)
+				plt.axhline(y=0.5, xmin=0, xmax=300, color='red')
 				plt.tight_layout()
 				plt.grid()
 				plt.savefig(self.get_filename(scd, scmd), transparent=True, dpi=300)
+				plt.close()
+
+	def get_filename(self, scd, scmd):
+		return self._folder + self.get_title(scd, scmd) + ".png"
+
+	def get_title(self, scd, scmd):
+		return str(scd._condition_label) + " " + str(scmd._position) + " " + str(scmd._cell_idx)
+
+	def plot_internal(self, ts):
+		plt.plot(ts)
+
+
+class SingleCellRecurrencePlotter(Plotter):
+	def __init__(self, dataset, transformation, filter_, ylim=[-0.1, 0.2]):
+		Plotter.__init__(self, dataset, transformation, filter_)
+		self.ylim = ylim
+
+	def plot(self):
+		for scd in self._dataset._scd:  # iterate over conditions
+			# xticks = [i*6*4 for i in range(11)]
+			# xlabels = [''if i%2==1 else str(i*4)  for i in range(11)]
+			for scmd in scd._scmd:  # iterate over cells
+				if self.is_cell_filtered(scmd):
+					continue
+				print scmd
+				ts = self.get_time_series(scmd)
+				plt.figure(figsize=(8, 12))
+				plt.subplot(2, 1, 1)
+				self.plot_internal(ts)
+				plt.xlabel('Frame [' + str(self._dataset._frame_length_in_minutes) + ' min]')
+				plt.title(self.get_title(scd, scmd))
+				# plt.xticks(xticks,xlabels)
+				# plt.yticks(yticks,ylabels)
+				plt.xlim([0, self._dataset._nframes])
+				plt.ylim(self.ylim)
+				plt.tight_layout()
+				plt.grid()
+
+				plt.subplot(2, 1, 2)
+
+				recurenceplot(np.array(removeNans(ts))[0], de=.04)
+				plt.savefig(self.get_filename(scd, scmd), transparent=True, dpi=500)
 				plt.close()
 
 	def get_filename(self, scd, scmd):
@@ -134,7 +185,7 @@ class SingleCell3DPlotter(Plotter):
 		ax.plot(ts[:-2], ts[1:-1], ts[2:])
 
 
-class SingleConditionPlotter(Plotter):
+class CombinedImshowPlotter(Plotter):
 	def __init__(self, dataset, transformation, filter_):
 		Plotter.__init__(self, dataset, transformation, filter_)
 
@@ -143,7 +194,7 @@ class SingleConditionPlotter(Plotter):
 		subplot_idx = 1
 		combined = None
 		ytick_labels = []
-		for scd_idx,scd in enumerate(self._dataset._scd):  # iterate over conditions
+		for scd_idx, scd in enumerate(self._dataset._scd):  # iterate over conditions
 			plt.subplot(2, 2, subplot_idx)
 			subplot_idx += 1
 			# xticks = [i*6*4 for i in range(13)]
@@ -174,16 +225,16 @@ class SingleConditionPlotter(Plotter):
 			else:
 				a = np.zeros((4, scd._nframes))
 				a[:] = np.NAN
-				combined = np.vstack((combined, a,condition_y))
+				combined = np.vstack((combined, a, condition_y))
 				for zxcasd in range(4):
 					ytick_labels.append(' ')
 			self.plot_internal(condition_y)
 			plt.xlabel('Frame [' + str(self._dataset._frame_length_in_minutes) + ' min]')
 			plt.title(self.get_title(scd))
 			# plt.xticks(xticks,xlabels)
-			plt.xlim([0, self._dataset._nframes-10])
+			plt.xlim([0, self._dataset._nframes])
 		plt.tight_layout()
-		plt.savefig(self.get_filename(scd),dpi=300,transparent=True)
+		plt.savefig(self.get_filename(scd), dpi=300, transparent=True)
 		plt.close()
 
 		plt.figure(figsize=(6, 12))
@@ -192,14 +243,14 @@ class SingleConditionPlotter(Plotter):
 		plt.xlabel('Frame [' + str(self._dataset._frame_length_in_minutes) + ' min]')
 		plt.title(self.get_title(scd))
 		# plt.xticks(xticks,xlabels)
-		plt.xlim([0, self._dataset._nframes - 10])
-		plt.yticks(range(len(ytick_labels)),ytick_labels,fontsize=5)
+		plt.xlim([0, self._dataset._nframes])
+		plt.yticks(range(len(ytick_labels)), ytick_labels, fontsize=5)
 		plt.tight_layout()
-		plt.text(300,15,'  0 pg egf')
-		plt.text(300,40,' 10 pg egf')
-		plt.text(300,75,'100 pg egf')
-		plt.text(300,120,'600 pg egf')
-		plt.savefig(self._folder+"combined.png",dpi=300,transparent=True)
+		plt.text(300, 15, '  0 pg egf')
+		plt.text(300, 35, ' 10 pg egf')
+		plt.text(300, 60, '100 pg egf')
+		plt.text(300, 100, '600 pg egf')
+		plt.savefig(self._folder + "combined.png", dpi=300, transparent=True)
 		plt.close()
 
 	def get_filename(self, scd):
@@ -211,5 +262,60 @@ class SingleConditionPlotter(Plotter):
 	def plot_internal(self, ts):
 		masked_array = np.ma.array(ts, mask=np.isnan(ts))
 		cmap = plt.cm.jet
-		cmap.set_bad('white', 1.)
-		plt.imshow(ts, aspect=10, interpolation='none',vmin=0,vmax=.04)
+		cmap.set_bad('white', 1.1)
+		plt.imshow(ts, aspect=10, interpolation='none', vmin=0, vmax=0.2)
+
+
+
+
+class RecurrenceStatScatter(Plotter):
+	def __init__(self, dataset, transformation, filter_):
+		Plotter.__init__(self, dataset, transformation, filter_)
+
+	def plot(self):
+		xs_random, ys_random = [], []
+		for k in np.linspace(0.15, 0.5, 200):
+			n = 150
+			x = np.zeros((n, n))
+			x[np.random.rand(n, n) < k] = 1
+			xs_random.append(rr(x))
+			ys_random.append(lam(x, 3))
+
+		xs, ys = [], []
+		c = 0
+		for scd_idx, scd in enumerate(self._dataset._scd):  # iterate over conditions
+			for idx, scmd in enumerate(scd._scmd):  # iterate over cells
+				if self.is_cell_filtered(scmd):
+					continue
+				ts = self.get_time_series(scmd)
+				xs.append(rr(get_rp(ts, .008)))
+				ys.append(lam(get_rp(ts, .008), 3))
+				c += 1
+
+		plt.figure(figsize=(5, 7))
+		plt.scatter(xs, ys, marker='+', color='blue',label='Data')
+		plt.scatter(xs_random, ys_random, marker='+', color='black',label='Random')
+		plt.xlabel('Recurrence Rate')
+		plt.ylabel('Trapping Time (Recurence plot statistics)')
+		plt.legend()
+		# plt.xlim([0-1,c+1])
+		plt.ylim([1.8, 2.8])
+		plt.tight_layout()
+		plt.savefig(self._folder + "lam_rp.png", dpi=600, transparent=True)
+		plt.close()
+
+
+def plot_recurrence():
+	from datasets.datasets import getDataset
+	from transformations.transformations import TransformationPipeline
+	from filters import GoodCellFilter, MinConsecutiveLengthFilter
+	dataset = getDataset("hke3_batch1")
+	a = {('0001', 0), ('003', 1), ('011', 0), ('011', 4), ('012', 4), ('013', 1), ('013', 2), ('063', 0)}
+	filter = GoodCellFilter(a)
+	filter = MinConsecutiveLengthFilter(120)
+	plotter = SingleCellRecurrencePlotter(dataset, TransformationPipeline([]), filter, ylim=[0.6, 1.2])
+	plotter.plot()
+
+
+if __name__ == "__main__":
+	plot_recurrence()

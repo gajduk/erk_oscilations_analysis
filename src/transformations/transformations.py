@@ -1,32 +1,39 @@
 import numpy as np
 from scipy.signal import savgol_filter
 
+from utils import get_manual_boundaries
 
-def removeNans(transform):
-	def inner(self, ts):
-		temp = []
-		temp_idxs = []
-		last_non_nan_idx = -1
-		i = 0
-		max_size_nans = 4
-		while i < len(ts):
-			if np.isnan(ts[i]):
-				while i < len(ts) and np.isnan(ts[i]):
-					i = i + 1
-				if i == len(ts):
-					break
-				else:
-					if last_non_nan_idx >= 0 and i - last_non_nan_idx <= max_size_nans:
-						l = i - last_non_nan_idx
-						dv = ts[i] - ts[last_non_nan_idx]
-						step = dv * 1.0 / l
-						for k in range(1, l):
-							temp_idxs.append(last_non_nan_idx + k)
-							temp.append(ts[last_non_nan_idx] + k * step)
-			temp.append(ts[i])
-			temp_idxs.append(i)
-			last_non_nan_idx = i
-			i = i + 1
+
+def removeNans(ts):
+	temp = []
+	temp_idxs = []
+	last_non_nan_idx = -1
+	i = 0
+	max_size_nans = 4
+	while i < len(ts):
+		if np.isnan(ts[i]):
+			while i < len(ts) and np.isnan(ts[i]):
+				i = i + 1
+			if i == len(ts):
+				break
+			else:
+				if last_non_nan_idx >= 0 and i - last_non_nan_idx <= max_size_nans:
+					l = i - last_non_nan_idx
+					dv = ts[i] - ts[last_non_nan_idx]
+					step = dv * 1.0 / l
+					for k in range(1, l):
+						temp_idxs.append(last_non_nan_idx + k)
+						temp.append(ts[last_non_nan_idx] + k * step)
+		temp.append(ts[i])
+		temp_idxs.append(i)
+		last_non_nan_idx = i
+		i = i + 1
+	return temp, temp_idxs
+
+
+def removeNansDecorator(transform):
+	def inner(self, ts, pos):
+		temp, temp_idxs = removeNans(ts)
 		transformed = transform(self, temp)
 		k = 0
 		res = []
@@ -42,7 +49,7 @@ def removeNans(transform):
 
 
 def testRemoveNans():
-	@removeNans
+	@removeNansDecorator
 	def sample_transform(self, ts):
 		return [e for e in ts]
 
@@ -79,8 +86,8 @@ class SavGolFilter:
 		self.n = n
 		self.p = p
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		return savgol_filter(ts, window_length=self.n, polyorder=self.p, mode='interp')
 
 	def __str__(self):
@@ -99,27 +106,16 @@ if __name__ == "__main__":
 	testSavGolFilter()
 
 
-class ClearNans:
-	def __init__(self):
-		pass
-
-	def transform(self, ts):
-		return [e for e in ts if not np.isnan(e)]
-
-	def __str__(self):
-		return "ClearNans"
-
-
 class TransformationPipeline:
 	_transformations = -1
 
 	def __init__(self, transformations):
 		self._transformations = transformations
 
-	def transform(self, data):
+	def transform(self, data, pos=None):
 		res = data
 		for transformation in self._transformations:
-			res = transformation.transform(res)
+			res = transformation.transform(res,pos)
 		return res
 
 	def __str__(self):
@@ -132,7 +128,7 @@ class MovingAverage:
 	def __init__(self, window_size=5):
 		self._window_size = window_size
 
-	def transform(self, interval):
+	def transform(self, interval, pos=None):
 		window = np.ones(int(self._window_size)) / float(self._window_size)
 		return np.convolve(interval, window, 'same')
 
@@ -146,12 +142,32 @@ class Thresholding:
 	def __init__(self, threshold=0.01):
 		self._threshold = threshold
 
-	@removeNans
-	def transform(self, ts):
-		return [e if e > self._threshold else 0 for e in ts]
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
+		return [1 if e > self._threshold else 0 for e in ts]
 
 	def __str__(self):
 		return "Threshold at (" + str(self._threshold) + ")"
+
+
+class ManualBoundaryClipping:
+	def __init__(self):
+		self._boundaries = get_manual_boundaries()
+
+	def transform(self, ts, pos=None):
+		res = []
+		start, end = 0,299
+		if pos in self._boundaries:
+			start, end = self._boundaries[pos]
+		for i, e in enumerate(ts):
+			if start <= i <= end:
+				res.append(e)
+			else:
+				res.append(float('NaN'))
+		return res
+
+	def __str__(self):
+		return "Manual"
 
 
 class Difference:
@@ -160,8 +176,8 @@ class Difference:
 	def __init__(self, step=3):
 		self._step = step
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		res = []
 		for k in range(len(ts) - self._step):
 			if np.isnan(ts[k]) or np.isnan(ts[k + self._step]):
@@ -180,8 +196,8 @@ class NormalizedByMin:
 	def __init__(self):
 		pass
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		min_, max_ = find_min_max(ts)
 		return [e / min_ for e in ts]
 
@@ -193,8 +209,8 @@ class NormalizedByMax:
 	def __init__(self):
 		pass
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		min_, max_ = find_min_max(ts)
 		return [e / max_ for e in ts]
 
@@ -206,8 +222,8 @@ class FoldChange:
 	def __init__(self):
 		pass
 
-	@removeNans
-	def transform(self, ts):
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
 		first_ = -1
 		for e in ts:
 			if not np.isnan(e):
@@ -223,7 +239,7 @@ class Fourier:
 	def __init__(self):
 		pass
 
-	def transform(self, ts):
+	def transform(self, ts, pos=None):
 		return np.fft.fft(ts)
 
 	def __str__(self):

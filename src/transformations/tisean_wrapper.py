@@ -59,7 +59,7 @@ class TiseanTransformation:
 	def __init__(self,command):
 		self._command = command
 
-	def transform(self,ts):
+	def transform(self,ts, pos=None):
 		cwd = getcwd()
 		chdir(tisean_path)
 		p = Popen(self._command.split(' '), stdout=PIPE, stdin=PIPE, stderr=STDOUT, shell=True)

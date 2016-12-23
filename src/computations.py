@@ -8,6 +8,7 @@ from transformations import TransformationPipeline, ClearNans,Thresholding
 from transformations.tisean_wrapper import TiseanTransformation
 
 
+
 def order_j_aneta_paper():
 	condition_ranges_longtime = {1:"0 pg EGF",10:"10 pg EGF",20:"50 pg EGF",30:"200 pg EGF"}
 
