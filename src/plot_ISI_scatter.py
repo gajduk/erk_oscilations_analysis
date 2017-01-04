@@ -1,9 +1,9 @@
 from filters import NanAndCloseTo1Filter,NoFilter
-from transformations.peakutils_wrapper import BaselineCorrection,PeakMarker
+from transformations.peakutils_wrapper import BaselineCorrection,PeakMarker,PeakDetection
 
 from datasets.datasets import getDataset
 from plotter import SingleCellPlotter,CombinedImshowPlotter,Plotter,RecurrenceStatScatter
-from transformations.transformations import TransformationPipeline, ManualBoundaryClipping, NormalizedByMax, SavGolFilter, Difference, PeakDetection
+from transformations.transformations import TransformationPipeline, ManualBoundaryClipping, NormalizedByMax, SavGolFilter, Difference
 from transformations.tisean_wrapper import TiseanTransformation
 from filters import MinConsecutiveLengthFilter,ManualFilter
 import numpy as np
@@ -18,10 +18,13 @@ class ISIScatter(Plotter):
 
 	def plot(self):
 		xs, ys = [], []
+		by_condition_by_cell = []
 		for scd_idx, scd in enumerate(self._dataset._scd):  # iterate over conditions
+			by_condition = []
 			for idx, scmd in enumerate(scd._scmd):  # iterate over cells
 				if self.is_cell_filtered(scmd):
 					continue
+				temp = []
 				ts = self.get_time_series(scmd)
 				ts = self.peaks_detection.transform(ts, None)
 				indexes = np.where(np.array(ts) > 0)[0]
@@ -31,6 +34,10 @@ class ISIScatter(Plotter):
 						continue
 					xs.append((indexes[i + 1] - indexes[i]) / 2 + indexes[i])
 					ys.append(y)
+					temp.append(y)
+				if len(temp) > 3:
+					by_condition.append(temp)
+			by_condition_by_cell.append(by_condition)
 		plt.figure(figsize=(12, 6))
 		plt.scatter(xs, ys, marker='+')
 		plt.xlabel('Frame [' + str(self._dataset._frame_length_in_minutes) + ' min]')
@@ -53,6 +60,20 @@ class ISIScatter(Plotter):
 		plt.ylabel('Count (norm.)')
 		plt.legend()
 		plt.savefig(self._folder + "ISI hist.png", dpi=300, transparent=True)
+		plt.close()
+
+		plt.figure(figsize=(6,6))
+		i = 0
+		colors=['red','black','green','blue']
+		for by_cell in by_condition_by_cell:
+			plt.scatter([np.mean(e) for e in by_cell],[np.std(e) for e in by_cell], marker='+',color=colors[i],label=self._dataset._scd[i]._condition_label)
+			i += 1
+		plt.xlabel('mean ISI [10 mins]')
+		plt.ylabel('std ISI [10 mins]')
+		plt.ylim([0,15])
+		plt.xlim([3,25])
+		plt.legend()
+		plt.savefig(self._folder + "ISI by cell.png", dpi=300, transparent=True)
 		plt.close()
 
 dataset = getDataset("hke3_batch1")

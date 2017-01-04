@@ -105,6 +105,24 @@ def testSavGolFilter():
 if __name__ == "__main__":
 	testSavGolFilter()
 
+class SubtractMovingAverage:
+	window = -1
+
+	def __init__(self, window=5):
+		self.window = window
+
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
+		window = np.ones(int(self.window)) / float(self.window)
+		baseline = np.convolve(ts, window, 'same')
+		res = [ts[i]-baseline[i]+0.01 for i in range(10,200)]
+		import matplotlib.pylab as plt
+		plt.plot(res)
+		plt.show()
+		quit()
+
+	def __str__(self):
+		return "SubtractMovingAverage at (" + str(self.window) + ")"
 
 class TransformationPipeline:
 	_transformations = -1

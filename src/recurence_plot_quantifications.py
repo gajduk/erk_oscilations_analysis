@@ -9,7 +9,7 @@ def get_rp(ts, de=0.1):
 	res = np.zeros((n, n))
 	for i in range(n):
 		for k in range(n):
-			if de > np.abs(ts[i] - ts[k]):
+			if de > (ts[i] - ts[k])**2:
 				res[i, k] = 1
 	return res
 

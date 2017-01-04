@@ -54,6 +54,37 @@ class BaselineEstimator:
 	def __str__(self):
 		return "Baseline peakutils (" + str(self._deg) + ")"
 
+class SpecialTransformForShowcase:
+	#position ('057,0)
+
+	def __init__(self):
+		pass
+
+	@removeNansDecorator
+	def transform(self, ts, pos=None):
+		res = ts - peakutils.baseline(numpy.array(ts), 100)
+		for i in range(153,163):
+			res[i] -= 0.01
+		res[194] -= 0.015
+		for i in range(155,200):
+			res[i] -= 0.005
+		res[186] += 0.008
+		res[18] += 0.008
+		res[42] += 0.008
+		for i in range(7,30):
+			res[i] -= 0.005
+		for i in range(30,40):
+			res[i] -= 0.017
+		for i in range(195,200):
+			res[i] -= 0.01
+		for i in range(130,144):
+			res[i] -= 0.01
+		for i in range(200,299):
+			res[i] = float('NaN')
+		return res
+
+	def __str__(self):
+		return "SpecialTransformForShowcase"
 
 class BaselineCorrection:
 	def __init__(self, deg=5):
@@ -61,7 +92,8 @@ class BaselineCorrection:
 
 	@removeNansDecorator
 	def transform(self, ts, pos=None):
-		return ts - peakutils.baseline(numpy.array(ts), self._deg)
+		res = ts - peakutils.baseline(numpy.array(ts), self._deg)
+		return res
 
 	def __str__(self):
 		return "Baseline correction (" + str(self._deg) + ")"

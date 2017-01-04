@@ -65,6 +65,43 @@ class Plotter:
 		return "F_" + str(self._filter) + " T_" + str(self._transformation)
 
 
+class ShowcaseCellPlotter(Plotter):
+
+	def __init__(self, dataset, transformation, filter_):
+		Plotter.__init__(self, dataset, transformation, filter_)
+
+	def plot(self):
+		for scd in self._dataset._scd:  # iterate over conditions
+			xticks = [i * 6 * 2 for i in range(17)]
+			xlabels = ['' if i % 4 > 0 else str(i * 2) for i in range(17)]
+			for scmd in scd._scmd:  # iterate over cells
+				if self.is_cell_filtered(scmd):
+					continue
+				print scmd
+				ts = self.get_time_series(scmd)
+				from recurence_plot_quantifications import get_rp
+				rp = get_rp(ts,de = 0.005)
+				plt.figure(figsize=(4, 4))
+				plt.imshow(1-rp,cmap='gray',interpolation='none')
+				plt.xlim([0, 200])
+				plt.ylim([0, 200])
+				plt.xticks(xticks,xlabels)
+				plt.yticks(xticks,xlabels)
+				plt.xlabel('Time [Hours]')
+				plt.ylabel('Time [Hours]')
+				plt.tight_layout()
+				plt.savefig(self.get_filename(scd, scmd), transparent=True, dpi=1200)
+				plt.close()
+
+	def get_filename(self, scd, scmd):
+		return self._folder + self.get_title(scd, scmd) + ".png"
+
+	def get_title(self, scd, scmd):
+		return str(scd._condition_label) + " " + str(scmd._position) + " " + str(scmd._cell_idx)
+
+	def plot_internal(self, ts):
+		plt.plot(ts)
+
 class SingleCellPlotter(Plotter):
 	def __init__(self, dataset, transformation, filter_, ylim=[-0.1, 0.2]):
 		Plotter.__init__(self, dataset, transformation, filter_)
@@ -72,24 +109,25 @@ class SingleCellPlotter(Plotter):
 
 	def plot(self):
 		for scd in self._dataset._scd:  # iterate over conditions
-			# xticks = [i*6*4 for i in range(11)]
-			# xlabels = [''if i%2==1 else str(i*4)  for i in range(11)]
+			xticks = [i*6*2 for i in range(17)]
+			xlabels = ['' if i%4>0 else str(i*2) for i in range(17)]
 			for scmd in scd._scmd:  # iterate over cells
 				if self.is_cell_filtered(scmd):
 					continue
 				print scmd
 				ts = self.get_time_series(scmd)
-				plt.figure(figsize=(8, 6))
+				plt.figure(figsize=(12, 6))
 				self.plot_internal(ts)
-				plt.xlabel('Frame [' + str(self._dataset._frame_length_in_minutes) + ' min]')
-				plt.title(self.get_title(scd, scmd))
-				# plt.xticks(xticks,xlabels)
+				plt.xlabel('Time [Hours]')
+				#plt.title(self.get_title(scd, scmd))
+				plt.xticks(xticks,xlabels)
 				# plt.yticks(yticks,ylabels)
-				plt.xlim([0, self._dataset._nframes])
+				plt.ylabel('pERK\n(FRET/CFP)')
+				plt.xlim([0, 200])
 				plt.ylim(self.ylim)
-				plt.axhline(y=0.5, xmin=0, xmax=300, color='red')
 				plt.tight_layout()
 				plt.grid()
+				#plt.show()
 				plt.savefig(self.get_filename(scd, scmd), transparent=True, dpi=300)
 				plt.close()
 
@@ -263,7 +301,7 @@ class CombinedImshowPlotter(Plotter):
 		masked_array = np.ma.array(ts, mask=np.isnan(ts))
 		cmap = plt.cm.jet
 		cmap.set_bad('white', 1.1)
-		plt.imshow(ts, aspect=10, interpolation='none', vmin=0, vmax=0.2)
+		plt.imshow(ts, aspect=10, interpolation='none', vmin=0, vmax=0.15)
 
 
 
