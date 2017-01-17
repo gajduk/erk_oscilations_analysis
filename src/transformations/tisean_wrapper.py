@@ -34,7 +34,7 @@ def simple_example_of_noise_reduction():
 	plt.show()
 
 def embeding_dimension(ts):
-	command = "false_nearest -M1,4"
+	command = "false_nearest -M1,6"
 	cwd = getcwd()
 	chdir(tisean_path)
 	p = Popen(command.split(' '), stdout=PIPE, stdin=PIPE, stderr=STDOUT, shell=True)
@@ -56,7 +56,7 @@ def embeding_dimension(ts):
 
 class TiseanTransformation:
 
-	def __init__(self,command):
+	def __init__(self,command="sav_gol -n15,15 p=5"):
 		self._command = command
 
 	def transform(self,ts, pos=None):
@@ -87,4 +87,4 @@ class TiseanTransformation:
 		return "Tisean "+self._command
 
 if __name__ == "__main__":
-	simple_example_of_noise_reduction
+	simple_example_of_noise_reduction()

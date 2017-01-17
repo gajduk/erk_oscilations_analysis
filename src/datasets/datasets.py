@@ -9,6 +9,10 @@ frame_length_in_minutes_batch3 = 5
 
 
 def getDataset(dataset_alias):
+	'''
+	:param dataset_alias: possible values are "hke3_batch1", "mdck_batch2" and "mdck_batch3"
+	:return: a datasets.dataset object, or None if the dataset could not be found
+	'''
 	dataset = None
 	if dataset_alias == "hke3_batch1":
 		dataset = HkeReaderBatch1().read()
